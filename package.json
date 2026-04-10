@@ -5,6 +5,10 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "workspaces": [
+    "packages/shared",
+    "services/*"
+  ],
   "scripts": {
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start:dev": "nest start --watch",
@@ -16,8 +20,9 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "install:all": "npm install",
-    "build": "npm run build --workspaces",
+    "install:all": "npm install --workspaces",
+    "build:shared": "npm -w packages/shared run build",
+    "build": "npm run build:shared && npm run build --workspaces",
     "start": "docker-compose -f infrastructure/docker/docker-compose.yml up -d",
     "stop": "docker-compose -f infrastructure/docker/docker-compose.yml down",
     "logs": "docker-compose -f infrastructure/docker/docker-compose.yml logs -f",
@@ -25,13 +30,20 @@
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
+    "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/typeorm": "^11.0.1",
+    "@types/bcrypt": "^6.0.0",
+    "@types/passport-jwt": "^4.0.1",
+    "bcrypt": "^6.0.0",
+    "class-transformer": "^0.5.0",
+    "class-validator": "^0.15.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "typeorm": "^0.3.0",
-    "class-validator": "^0.15.0",
-    "class-transformer": "^0.5.0"
+    "typeorm": "^0.3.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
