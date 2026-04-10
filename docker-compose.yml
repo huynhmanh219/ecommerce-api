@@ -1,0 +1,220 @@
+# Services trong network này có thể gọi nhau qua hostname
+networks:
+  ecommerce-network:
+    driver: bridge
+
+# Volumes để persistence data (restart không mất data)
+volumes:
+  postgres_auth_data:
+  postgres_product_data:
+  postgres_order_data:
+  postgres_payment_data:
+  rabbitmq_data:
+  redis_data:
+  elasticsearch_data:
+
+services:
+  # ========================================
+  # DATABASES
+  # ========================================
+
+  # Auth Service Database
+  postgres-auth:
+    image: postgres:15-alpine
+    container_name: postgres-auth
+    networks:
+      - ecommerce-network
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: auth_db
+    ports:
+      - "5432:5432"  # Host:Container
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Product Service Database
+  postgres-product:
+    image: postgres:15-alpine
+    container_name: postgres-product
+    networks:
+      - ecommerce-network
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: product_db
+    ports:
+      - "5433:5432"  # Khác port để vào được từ host
+    volumes:
+      - postgres_product_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Order Service Database
+  postgres-order:
+    image: postgres:15-alpine
+    container_name: postgres-order
+    networks:
+      - ecommerce-network
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: order_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres_order_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Payment Service Database
+  postgres-payment:
+    image: postgres:15-alpine
+    container_name: postgres-payment
+    networks:
+      - ecommerce-network
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: payment_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - postgres_payment_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # MESSAGE BROKER
+  # ========================================
+  
+  # RabbitMQ - Services communicate via messages
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: rabbitmq
+    networks:
+      - ecommerce-network
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"      # AMQP protocol
+      - "15672:15672"    # Management UI (admin:admin)
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: rabbitmq-diagnostics -q ping
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ========================================
+  # CACHE
+  # ========================================
+
+  # Redis - Session, cache, real-time data
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    networks:
+      - ecommerce-network
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ========================================
+  # OBSERVABILITY
+  # ========================================
+
+  # Jaeger - Distributed tracing
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    networks:
+      - ecommerce-network
+    ports:
+      - "6831:6831/udp"  # Jaeger agent (services send traces here)
+      - "16686:16686"    # UI - http://localhost:16686
+    environment:
+      COLLECTOR_ZIPKIN_HOST_PORT: ":9411"
+
+  # Elasticsearch - Log storage
+  elasticsearch:
+    image: elasticsearch:8.5.0
+    container_name: elasticsearch
+    networks:
+      - ecommerce-network
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false  # Dev only!
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  # Kibana - Log visualization
+  kibana:
+    image: kibana:8.5.0
+    container_name: kibana
+    networks:
+      - ecommerce-network
+    ports:
+      - "5601:5601"  # http://localhost:5601
+    depends_on:
+      - elasticsearch
+
+  # Prometheus - Metrics collection
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    networks:
+      - ecommerce-network
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"  # http://localhost:9090
+
+  # Grafana - Metrics visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    networks:
+      - ecommerce-network
+    ports:
+      - "3100:3000"  # http://localhost:3100 (admin:admin)
+    depends_on:
+      - prometheus
+  
+  api-gateway:
+    build:
+      context: "./services/api-gateway/nginx"
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "3000:3000"
+    networks:
+      - ecommerce-network
+    volumes:
+      - ./services/api-gateway/nginx/nginx.conf:/etc/nginx/nginx.conf
+    
