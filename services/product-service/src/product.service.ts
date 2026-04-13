@@ -2,6 +2,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Category, Product } from "./entities/product.entity";
 import { Repository } from "typeorm";
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { RabbitSubscribe } from "@golevelup/nestjs-rabbitmq";
 
 
 @Injectable()
@@ -120,5 +121,41 @@ export class ProductService{
         product.rating - averageRating;
         product.reviewCount = reviewCount;
         await this.productRepository.save(product);
+    }
+
+    @RabbitSubscribe({
+        exchange:"ecommerce_exchange",
+        routingKey:"inventory.update",
+        queue:"product-inventory-reserve-queue"
+    })
+    async handleReserveStock(msg:any){
+        console.log('Received stock reservation message',msg);
+
+        try {
+            const success = await this.reserveStock(msg.productId,msg.quantity);
+            if(success){
+                console.log(`Reserved stock for product ${msg.productId}, quantity ${msg.quantity}`);
+            }else{
+                console.error(`Failed to reserve stock for product ${msg.productId}, quantity ${msg.quantity}`);
+            }
+        } catch (error) {
+            console.error(`Error reserving stock for product ${msg.productId}:`, error);
+        }
+    }
+
+    @RabbitSubscribe({
+        exchange:"ecommerce_exchange",
+        routingKey:"inventory.release",
+        queue:"product-inventory-release-queue"
+    })
+    async handleReleaseStock(msg:any){
+        console.log('Received stock release message',msg);
+        try {
+            await this.releaseStock(msg.productId,msg.quantity);
+            console.log(`Released stock for product ${msg.productId}, quantity ${msg.quantity}`);
+        } 
+        catch (error) {
+            console.error(`Error releasing stock for product ${msg.productId}:`, error);
+        }
     }
 }

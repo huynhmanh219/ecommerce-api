@@ -119,6 +119,7 @@ export class OrderPaymentSaga{
 
         for (const productId of state.reservedItems) {
             const item = state.items.find(i=>i.productId === productId);
+            if(!item) continue;
             if(item){
                 await this.amqpConnection.publish(
                     'ecommerce.exchange',
