@@ -24,6 +24,9 @@ export class Order{
         price:number;
     }>
 
+    @Column()
+    userId:string;
+
     @Column('decimal',{precision:10,scale:2})
     totalPrice: number;
 
