@@ -1,0 +1,8 @@
+{
+  "name": "api-gateway",
+  "version": "1.0.0",
+  "description": "API Gateway (Nginx)",
+  "scripts": {
+    "start": "docker build -t api-gateway:latest . && docker run -p 3000:3000 api-gateway:latest"
+  }
+}
