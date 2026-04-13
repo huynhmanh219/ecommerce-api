@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -15,17 +15,19 @@ import { AppService } from './app.service';
       envFilePath:'.env.local',
     }),
 
-    TypeOrmModule.forRoot({
-      type:'postgres',
-      host: process.env.DB_HOST || 'postgres-auth',
-      //docker network hostname
-      port: Number(process.env.DB_PORT) || 5432,
-      username:process.env.DB_USERNAME || 'postgres',
-      password:process.env.DB_PASSWORD || 'password',
-      database:process.env.DB_NAME || 'auth_db',
-      entities:[User],
-      synchronize:process.env.NODE_ENV !== 'production',
-      logging:process.env.NODE_ENV === 'development'
+    TypeOrmModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        type: 'postgres',
+        host: configService.get('DB_HOST') || 'postgres-auth',
+        port: configService.get('DB_PORT') || 5432,
+        username: configService.get('DB_USERNAME') || 'postgres',
+        password: configService.get('DB_PASSWORD') || 'password',
+        database: configService.get('DB_NAME') || 'auth_db',
+        entities: [User],
+        synchronize: configService.get('NODE_ENV') !== 'production',
+        logging: configService.get('NODE_ENV') === 'development'
+      })
     }),
 
     TypeOrmModule.forFeature([User]),

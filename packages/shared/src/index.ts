@@ -7,6 +7,6 @@ export {
     OrderItem,
     OrderCancelledEvent,
     OrderShippedEvent,
-    PaymentcompletedEvent,
-    PaymentFailedEvent
+    // PaymentcompletedEvent,
+    // PaymentFailedEvent
 } from "./events/order.events";

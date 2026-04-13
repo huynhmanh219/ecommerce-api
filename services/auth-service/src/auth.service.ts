@@ -1,5 +1,6 @@
 import { User, UserRole } from "@ecommerce/shared";
 import { ConflictException, Injectable, UnauthorizedException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
 import { JwtService } from "@nestjs/jwt";
 import { Repository } from "typeorm";
 import * as bcrypt from 'bcrypt';
@@ -7,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 @Injectable()
 export class AuthService{
     constructor(
+        @InjectRepository(User)
         private userRepository: Repository<User>,
         private jwtService: JwtService
     ){}
