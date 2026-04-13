@@ -3,7 +3,10 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { Order, OrderStatus } from "./entities/order.entity";
 import { Repository } from "typeorm";
 import { HttpService } from "@nestjs/axios";
-import { firstValueFrom, NotFoundError } from "rxjs";
+import { firstValueFrom, NotFoundError, timestamp } from "rxjs";
+import { AmqpConnection } from "@golevelup/nestjs-rabbitmq";
+import { EVENT_KEYS } from "@ecommerce/shared/src/events/order.events";
+import { OrderCreatedEvent } from "@ecommerce/shared";
 
 
 @Injectable()
@@ -11,6 +14,7 @@ export class OrderService{
     constructor(
         @InjectRepository(Order)
         private orderRepository:Repository<Order>,
+        private amqpConnection: AmqpConnection,
         private httpService:HttpService,
     ){}
 
@@ -55,6 +59,19 @@ export class OrderService{
                 }
             }
             
+            await this.amqpConnection.publish(
+                'ecommerce.exchange',
+                EVENT_KEYS.ORDER_CREATED,
+                {
+                    orderId:savedOrder.id,
+                    userId,
+                    items:itemsWithPrices,
+                    totalPrice,
+                    shippingAddress,
+                    timestamp:new Date()
+                } as OrderCreatedEvent
+            );
+
             const payment = await this.processPayment(savedOrder.id,userId,totalPrice);
             savedOrder.paymentId = payment.id;
             savedOrder.paymentStatus = "pending";

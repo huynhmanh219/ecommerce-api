@@ -208,7 +208,7 @@ services:
   
   api-gateway:
     build:
-      context: "./services/api-gateway/nginx"
+      context: "../../services/api-gateway/nginx"
       dockerfile: Dockerfile
     container_name: api-gateway
     ports:

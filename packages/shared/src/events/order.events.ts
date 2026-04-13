@@ -37,3 +37,12 @@ export interface PaymentFailedEvent{
     reason:string;
     timestamp:Date;
 }
+
+export const EVENT_KEYS ={
+    ORDER_CREATED:'order.created',
+    ORDER_CANCELLED:'order.cancelled',
+    ORDER_CONFIRMED:'order.comfirmed',
+    PAYMENT_COMPLETED:'payment.completed',
+    PAYMENT_FAILED:'payment.failed'
+}
+
