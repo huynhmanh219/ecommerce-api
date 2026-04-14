@@ -80,7 +80,7 @@ export class EventStoreService{
                 ...state,
                 status: 'cancelled',
                 failureReason: event.data.reason,
-                };
+                }; 
 
             case 'OrderShipped':
                 return {
