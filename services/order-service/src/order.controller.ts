@@ -33,6 +33,11 @@ export class OrderController{
         return order;
     }
 
+    @Get(':id/history')
+    async getOrderHistory(@Param('id') id:string){
+        return this.orderService.getOrderHistory(id);
+    }
+
     @Get('health')
     health(){
         return {status:'ok',service:'order'};

@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable,Inject } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
 import { Order, OrderStatus } from "./entities/order.entity";
 import { Repository } from "typeorm";
@@ -7,15 +7,21 @@ import { firstValueFrom, NotFoundError, timestamp } from "rxjs";
 import { AmqpConnection } from "@golevelup/nestjs-rabbitmq";
 import { EVENT_KEYS } from "@ecommerce/shared/src/events/order.events";
 import { OrderCreatedEvent } from "@ecommerce/shared";
+import { EventStoreService } from "../../event-service/src/event_store.service";
+import { EventStore } from "../../event-service/src/entities/event_store.entities";
 
 
 @Injectable()
 export class OrderService{
     constructor(
         @InjectRepository(Order)
+        private eventStoreService:EventStoreService,
         private orderRepository:Repository<Order>,
         private amqpConnection: AmqpConnection,
         private httpService:HttpService,
+        
+        @Inject("LOGGER")
+        private logger:any,
     ){}
 
     async createOrder(userId:string,items:any[],shippingAddress:string) : Promise<Order>{
@@ -51,6 +57,14 @@ export class OrderService{
         });
         const savedOrder = await this.orderRepository.save(order);
         
+        // logger
+        this.logger.info('Creating order',{
+            userId,
+            itemCount: items.length,
+            service: "order-service"
+        })
+
+
         try {
             for(const item of itemsWithPrices){
                 const reserved = await this.reserveProductStock(item.productId,item.quantity);
@@ -78,6 +92,29 @@ export class OrderService{
             savedOrder.status = OrderStatus.CONFIRMED;
             await this.orderRepository.save(savedOrder);
             
+
+            //store event
+            await this.eventStoreService.storeEvent(
+                savedOrder.id,
+                'Order',
+                'OrderCreated',
+                {
+                    orderId:savedOrder.id,
+                    userId,
+                    items,
+                    totalPrice
+                },
+                {
+                    source:"api",
+                    user:userId
+                },
+            );
+            // logger
+            this.logger.info('Order created successfully',{
+                orderId:savedOrder.id,
+                userId,
+            });
+
             return savedOrder;
         } catch (error) {
             for (const item of itemsWithPrices){
@@ -155,17 +192,27 @@ export class OrderService{
         }
     }
 
-    async updateOrderStatus(orderId:string,status:OrderStatus):Promise<Order>{
+    async updateOrderStatus(orderId:string,newStatus:OrderStatus):Promise<Order>{
         const order = await this.getOrderById(orderId);
-        order.status = status;
-        return this.orderRepository.save(order);
+        const oldStatus = order.status;
+        order.status = newStatus;
+        await this.orderRepository.save(order);
+
+        await this.eventStoreService.storeEvent(
+            orderId,
+            'Order',
+            'OrderStatusUpdated',
+            {
+                orderId,
+                oldStatus,
+                newStatus
+            }
+        );
+        return order;
     }
 
-    // private async getOrderById(orderId:string):Promise<Order>{
-    //     const order = await this.orderRepository.findOne({where:{id:orderId}});
-    //     if(!order){
-    //         throw new BadRequestException('Order not found');
-    //     }
-    //     return order;
-    // }
+    async getOrderHistory(orderId:string):Promise<EventStore[]>{
+        return this.eventStoreService.getEventsByAggregateId(orderId,'Order');
+    } 
+   
 }

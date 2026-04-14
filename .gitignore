@@ -58,3 +58,5 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 /services/*/dist
 /packages/*/node_modules
 /services/*/node_modules
+
+MICROSERVICES_FORM_START.md
