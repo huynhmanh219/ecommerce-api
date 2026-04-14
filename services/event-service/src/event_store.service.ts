@@ -97,7 +97,7 @@ export class EventStoreService{
                 };
 
             default:
-                return state;
+                return state; 
         }
     }
 
