@@ -2,7 +2,7 @@ import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, Tree } from "
 
 
 @Entity('event_store')
-export class Event{
+export class EventStore{
     @PrimaryGeneratedColumn('uuid')
     id:string;
 
